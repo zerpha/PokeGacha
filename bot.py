@@ -1,3 +1,5 @@
+#Henry Nguyen
+
 # Work with Python 3.6
 import random, os
 import discord
@@ -10,7 +12,9 @@ TOKEN = 'NjMwNDYzOTU3Njg5MzAzMDQx.XloO7w.13LNfCh7RqXXXMKmaA2knWBaixQ'
 
 BOT_PREFIX = ("?", "!")
 client = commands.Bot(command_prefix=BOT_PREFIX)
+client.remove_command('help')
 
+#pokemon class
 class PokeObj:
     def __init__(self, name, number, type, imgLink):
         self.name = name
@@ -19,6 +23,7 @@ class PokeObj:
         self.imgLink = imgLink
         self.caughtAt = (datetime.now().strftime("%b %d, %Y - %I:%M %p"))
 
+#user class which holds users pokemon
 class User:
     def __init__(self, pokemon):
         if pokemon == None:
@@ -43,6 +48,7 @@ class User:
     def subtractRolls(self):
         self.numberOfRolls -= 1
 
+#bot class which holds all users
 class PokeBot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -56,6 +62,7 @@ class PokeBot(commands.Cog):
     def getImageLink(self, number):
         return 'https://pokeres.bastionbot.org/images/pokemon/' + str(number) + '.png'
 
+    #extracts info from poke class taken from PokemonAPI
     def extractData(self, poke):
         types = poke['types']
         type2 = ""
@@ -67,17 +74,19 @@ class PokeBot(commands.Cog):
         pokemon = PokeObj(poke['name'].capitalize(), pokemonNumber, type1, self.getImageLink(pokemonNumber))
         return pokemon
 
+    #formats all pokemon information into a embed
     # In embed.color: int value should be less than or equal to 16777215
     def toEmbed(self, pokemon, owner):
         randomColor = random.randint(0, 16777215)
         embed = discord.Embed(title=str(pokemon.num) + '. ' + pokemon.name, color=randomColor, description=pokemon.type)
         embed.set_image(url=pokemon.imgLink)
         if owner != None:
-            msg = 'Caught by ' + str(owner) + ' at ' + pokemon.caughtAt
+            msg = 'Caught by ' + str(owner.name) + ' at ' + pokemon.caughtAt
             embed.set_footer(text=msg,
                              icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
         return embed
 
+    #rolls a random pokemon
     @commands.command(name='roll')
     async def pokemonRoll(self, context):
         if context.author.id not in self.users.keys():
@@ -87,33 +96,36 @@ class PokeBot(commands.Cog):
                 self.users[context.author.id].subtractRolls()
                 number = random.randint(1, len(self.pokemonLeft))
                 pokemonNumber = str(self.pokemonLeft[number-1])
-
-                url = "http://pokeapi.co/api/v2/pokemon/" + pokemonNumber + "/"
-                poke = requests.get(url).json()
+                poke = requests.get('http://pokeapi.co/api/v2/pokemon/{}/'.format(pokemonNumber)).json()
                 pokemon = self.extractData(poke)
-                embed = self.toEmbed(pokemon, None)
-                await context.send(embed=embed)
+                embeded = self.toEmbed(pokemon, None)
+                await context.send(embed=embeded)
+
+                def check(reaction, user):
+                    if len(reaction.message.embeds) > 0:
+                        return reaction.message.embeds[0].title == embeded.title
+                    else:
+                        return False
 
                 try:
-                    reaction, user = await client.wait_for('reaction_add', timeout=8.0)
+                    reaction, user = await client.wait_for('reaction_add', timeout=8.0, check = check)
                 except:
-                    ran = pokemon.name + ' has escaped!'
-                    await context.send(ran)
+                    await context.send('{} has escaped!'.format(pokemon.name))
                 else:
                     if user.id in self.users.keys():
                         self.users[user.id].addPokemon(pokemon)
                     else:
                         self.users[user.id] = User(pokemon)
 
-                    self.ownership[pokemon.name] = user.name
+                    self.ownership[pokemon.name] = user
                     self.pokemonLeft.remove(int(pokemonNumber))
-                    caught = pokemon.name + ' has been caught by ' + user.name + '!'
-                    await context.send(caught)
+                    await context.send('{} has been caught by {}!'.format(pokemon.name, user.name))
             else:
                 await context.send('Out of Rolls.')
         else:
             await context.send('All pokemon have been caught.')
 
+    #show pokemon info and if anyone owns it
     @commands.command(name='check')
     async def pokemonInfo(self, context, name):
         owner = None
@@ -121,7 +133,7 @@ class PokeBot(commands.Cog):
         if context.message.author.id not in self.users.keys():
             self.users[context.message.author.id] = User(None)
         url = "http://pokeapi.co/api/v2/pokemon/" + nameLower + "/"
-        request = requests.get(url)
+        request = requests.get("http://pokeapi.co/api/v2/pokemon/{}/".format(nameLower))
         if request.status_code == 200:
             poke = requests.get(url).json()
             pokemon = self.extractData(poke)
@@ -130,25 +142,29 @@ class PokeBot(commands.Cog):
             embed = self.toEmbed(pokemon, owner)
             await context.send(embed=embed)
 
+    #list all of users pokemon
     @commands.command(name='list')
     async def pokemonList(self, context):
-        if context.message.author.id in self.users.keys():
-            user = self.users[context.message.author.id]
-            total = str(context.author.name) + ' caught ' + str(len(user.pokeDict.keys())) + ' out of 807.'
-            pokeEmbed = discord.Embed(type="rich", title=str(context.author.name), color=15849984)
-            str_desc = ""
-            for num in range(1, 807):
-                if (user.pokeNum[num] != 0):
-                    poke = user.pokeNum[num]
-                    str_desc += "{}. {}\n".format(str(poke.num), poke.name.capitalize())
-            pokeEmbed.description = str_desc
-            pokeEmbed.set_footer(text=total,
-                                 icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
-            await context.send(embed=pokeEmbed)
-        else:
-            self.users[context.message.author.id] = User(None)
-            await context.send('No Pokemon owned.')
+        words = context.message.content.split()
+        print(context.message.content)
+        if len(words) > 1 and len(context.message.mentions) == 1:
+            if context.message.mentions[0].id in self.users.keys():
+                user = self.users[context.message.mentions[0].id]
+                pokeEmbed = discord.Embed(type="rich", title=str(context.author.name), color=15849984)
+                str_desc = ""
+                for num in range(1, 807):
+                    if (user.pokeNum[num] != 0):
+                        poke = user.pokeNum[num]
+                        str_desc += "{}. {}\n".format(str(poke.num), poke.name.capitalize())
+                pokeEmbed.description = str_desc
+                pokeEmbed.set_footer(text='{} caught {} out of 807.'.format(context.author.name, str(len(user.pokeDict.keys()))),
+                                     icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
+                await context.send(embed=pokeEmbed)
+            else:
+                self.users[context.message.author.id] = User(None)
+                await context.send('No Pokemon owned.')
 
+    #release pokemon from user if they own it
     @commands.command(name='release')
     async def release(self, context, name):
         nameFix = name.lower().capitalize()
@@ -159,27 +175,68 @@ class PokeBot(commands.Cog):
                 self.pokemonLeft.append(poke.num) #add pokemon back into pool of rolls
                 del self.ownership[nameFix] #delete ownership of pokemon
                 user.delPokemon(nameFix) #delete pokemon in user
-                msg = nameFix + ' has been set free.'
-                await context.send(msg)
+                await context.send('{} has been set free.'.format(nameFix))
             else:
                 await context.send('Pokemon is not owned.')
         else:
             self.users[context.message.author.id] = User(None)
             await context.send('No Pokemon owned.')
 
+    @commands.command(name='trade')
+    async def trade(self, context, yourPoke, trader, theirPoke):
+        if context.message.author != context.message.mentions[0]:
+            nameFix = theirPoke.lower().capitalize()
+            myFix = yourPoke.lower().capitalize()
+            if nameFix in self.ownership.keys() and context.message.mentions[0] == self.ownership[nameFix]: #check the trader and their pokemon
+                if myFix in self.ownership.keys() and context.message.author == self.ownership[myFix]: #check yourself and your pokemon
+                    def check(m):
+                        words = m.content.split()
+                        if len(words) == 2 and m.mentions[0] == context.message.author:
+                            msg = words[1].lower().capitalize()
+                            return m.author == self.ownership[nameFix] and ((msg == 'Yes' or msg == 'Y') or (msg == 'No' or msg == 'N')) #true if its a valid reply
+                        else:
+                            return False
+                    try:
+                         await context.send('\"@user yes/no\" to finish trade.')
+                         confirmationMsg = await client.wait_for('message', timeout=15.0, check = check)
+                    except:
+                        await context.send('Trade between {} and {} has expired.'.format(context.message.author.name, context.message.mentions[0].name))
+                    else:
+                        words = confirmationMsg.content.split()
+                        msg = words[1].lower().capitalize()
+                        print(msg)
+                        if (msg == 'No' or msg == 'N'):
+                            await context.send('{} has denied the trade from {}.'.format(context.message.mentions[0].name, context.message.author.name))
+                        else:
+                            self.ownership[myFix] = context.message.mentions[0]
+                            self.ownership[nameFix] = context.message.author
+                            poke1 = self.users[context.message.author.id].pokeDict[myFix] #get your mon before deleting it
+                            self.users[context.message.author.id].delPokemon(poke1.name) #remove mon from your collection
+                            self.users[context.message.mentions[0].id].addPokemon(poke1) #give the mon to the trader
+                            poke2 = self.users[context.message.mentions[0].id].pokeDict[nameFix] #get traders mon before deleting it
+                            self.users[context.message.mentions[0].id].delPokemon(poke2.name) #remove mon from traders collection
+                            self.users[context.message.author.id].addPokemon(poke2) #give the mon to the you
+                            await context.send('{} has traded their {} for {}\'s {}.'.format(context.message.author.name, poke1.name,
+                                                                                             context.message.mentions[0].name, poke2.name))
+                else:
+                    await context.send('{} does not own {}.'.format(context.message.author.name, myFix))
+            else:
+                await context.send('{} does not own {}.'.format(context.message.mentions[0].name, nameFix))
+        else:
+            await context.send('You can not trade with yourself.')
+
+
     @commands.command(name='left')
     async def leftover(self, context):
         if context.message.author.id not in self.users.keys():
             self.users[context.message.author.id] = User(None)
-        msg = str(context.author.name) + ' has ' + str(self.users[context.message.author.id].numberOfRolls) + ' rolls left.'
-        await context.send(msg)
+        await context.send('{} has {} rolls left.'.format(context.author.name, str(self.users[context.message.author.id].numberOfRolls)))
 
     @commands.command(name='time')
     async def time(self, context):
         CurMinute = int(datetime.now().strftime("%M"))
         minutesLeft = 60 - CurMinute
-        msg = 'Rolls reset in ' + str(minutesLeft) + ' minutes.'
-        await context.send(msg)
+        await context.send('Rolls reset in {} minutes.'.format(str(minutesLeft)))
 
     async def rollTimer(self):
         await self.bot.wait_until_ready()
@@ -191,6 +248,19 @@ class PokeBot(commands.Cog):
             minutesLeft = 60 - CurMinute
             secondsTotal = minutesLeft * 60
             await asyncio.sleep(secondsTotal)
+
+    @commands.command(name='help')
+    async def help(self, context):
+        embed = discord.Embed(type="rich")
+        embed.description = 'Commands: \n\n !roll  :  Rolls a random, available pokemon. React to claim the pokemon\n' \
+                            '!list @user : Lists all of users pokemon\n' \
+                            '!check \'pokemonName\'  :  Check a pokemon\'s information\n' \
+                            '!release \'pokemonName\'  :  Release pokemon if you own it\n' \
+                            '!left  :  Check how many rolls you have left\n' \
+                            '!time  :  Check time left till rolls reset\n' \
+                            '!trade \'yourPokemon\' @user \'traderPokemon\'  :  Send trade request to a user\n\n' \
+                            'Type !help command for more info on a command.'
+        await context.send(embed= embed)
 
 @client.event
 async def on_ready():
