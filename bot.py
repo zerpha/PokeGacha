@@ -1,53 +1,21 @@
 #Henry Nguyen
 
 # Work with Python 3.6
+
 import random, os
 import discord
 import requests
 import asyncio
 import pickle
-from discord.ext import commands
 from datetime import datetime
+from discord.ext import commands
+from users import *
 
 TOKEN = 'NjMwNDYzOTU3Njg5MzAzMDQx.XloO7w.13LNfCh7RqXXXMKmaA2knWBaixQ'
 
 BOT_PREFIX = ("?", "!")
 client = commands.Bot(command_prefix=BOT_PREFIX)
 client.remove_command('help')
-
-#pokemon class
-class PokeObj:
-    def __init__(self, name, number, type, imgLink):
-        self.name = name
-        self.num = number
-        self.type = type
-        self.imgLink = imgLink
-        self.caughtAt = (datetime.now().strftime("%b %d, %Y - %I:%M %p"))
-
-#user class which holds users pokemon
-class User:
-    def __init__(self, pokemon):
-        if pokemon == None:
-            self.pokeDict = {} #dictionary with pokemon names as the key, the names are capitalized
-            self.pokeNum = [0] * 807 #list of pokemon with index being the pokemon indices
-            self.numberOfRolls = 99 #####################3
-        else:
-            self.pokeDict = {pokemon.name: pokemon} #dictionary with pokemon names as the key, the names are capitalized
-            self.pokeNum = [0] * 807 #list of pokemon with index being the pokemon indices
-            self.pokeNum[pokemon.num] = pokemon
-            self.numberOfRolls = 99 ##########2
-
-    def addPokemon(self, pokemon):
-        self.pokeDict[pokemon.name] = pokemon
-        self.pokeNum[pokemon.num] = pokemon
-
-    def delPokemon(self, name):
-        poke = self.pokeDict[name]
-        del self.pokeDict[name]
-        self.pokeNum[poke.num] = 0
-
-    def subtractRolls(self):
-        self.numberOfRolls -= 1
 
 #bot class which holds all users
 class PokeBot(commands.Cog):
@@ -83,8 +51,9 @@ class PokeBot(commands.Cog):
         embed.set_image(url=pokemon.imgLink)
         if owner != None:
             msg = 'Caught by ' + str(owner.name) + ' at ' + pokemon.caughtAt
+            embed.set_thumbnail(url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
             embed.set_footer(text=msg,
-                             icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
+                             icon_url=owner.avatar_url)
         return embed
 
     def set_pickle(self):
@@ -150,7 +119,7 @@ class PokeBot(commands.Cog):
     #show pokemon info and if anyone owns it
     @commands.command(name='check')
     async def pokemonInfo(self, context, name):
-        owner = None
+        ownerid = None
         nameLower = name.lower()
         if context.message.author.id not in self.users.keys():
             self.users[context.message.author.id] = User(None)
@@ -168,22 +137,29 @@ class PokeBot(commands.Cog):
     @commands.command(name='list')
     async def pokemonList(self, context):
         words = context.message.content.split()
+        name = ""
+        user = None
         if len(words) > 1 and len(context.message.mentions) == 1:
+            name = context.message.mentions[0].name
             if context.message.mentions[0].id in self.users.keys():
                 user = self.users[context.message.mentions[0].id]
-                pokeEmbed = discord.Embed(type="rich", title=str(context.author.name), color=15849984)
-                str_desc = ""
-                for num in range(1, 807):
-                    if (user.pokeNum[num] != 0):
-                        poke = user.pokeNum[num]
-                        str_desc += "{}. {}\n".format(str(poke.num), poke.name.capitalize())
-                pokeEmbed.description = str_desc
-                pokeEmbed.set_footer(text='{} caught {} out of 807.'.format(context.author.name, str(len(user.pokeDict.keys()))),
-                                     icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
-                await context.send(embed=pokeEmbed)
             else:
-                self.users[context.message.author.id] = User(None)
-                await context.send('No Pokemon owned.')
+                self.users[context.message.mentions[0].id] = User(None)
+                user = self.users[context.message.mentions[0].id]
+        else:
+            name = context.message.author.name
+            user = self.users[context.message.author.id]
+
+        pokeEmbed = discord.Embed(type="rich", title= name , color=15849984)
+        str_desc = ""
+        for num in range(1, 807):
+            if (user.pokeNum[num] != 0):
+                poke = user.pokeNum[num]
+                str_desc += "{}. {}\n".format(str(poke.num), poke.name.capitalize())
+                pokeEmbed.description = str_desc
+        pokeEmbed.set_footer(text='{} caught {} out of 807.'.format(name, str(len(user.pokeDict.keys()))),
+                            icon_url="https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png")
+        await context.send(embed=pokeEmbed)
 
     #release pokemon from user if they own it
     @commands.command(name='release')
@@ -293,7 +269,7 @@ async def on_ready():
             try:
                 users = pickle.load(file)
                 if isinstance(users, dict):
-                    print("Found obj")
+                    print("Found users")
                     Poke.users = users
                 else:
                     print("Couldn't Find")
@@ -308,7 +284,7 @@ async def on_ready():
             try:
                 owners = pickle.load(file)
                 if isinstance(owners, dict):
-                    print("Found obj")
+                    print("Found owners")
                     Poke.ownership = owners
                 else:
                     print("Couldn't Find")
@@ -323,7 +299,7 @@ async def on_ready():
             try:
                 left = pickle.load(file)
                 if isinstance(left, list):
-                    print("Found obj")
+                    print("Found pokemon left")
                     Poke.pokemonLeft = left
                 else:
                     print("Couldn't Find")
