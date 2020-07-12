@@ -11,7 +11,8 @@ from datetime import datetime
 from discord.ext import commands
 from users import *
 
-TOKEN = 'NjMwNDYzOTU3Njg5MzAzMDQx.XloO7w.13LNfCh7RqXXXMKmaA2knWBaixQ'
+TOKEN = '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
+
 
 BOT_PREFIX = ("?", "!")
 client = commands.Bot(command_prefix=BOT_PREFIX)
