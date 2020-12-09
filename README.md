@@ -8,11 +8,11 @@ Users are able to collect, trade, and release hundreds of Pokemon.
 
 #Commands
    '!list @user : Lists all of users pokemon<br/>
-   '!check \'pokemonName\'  :  Check a pokemon's information
-   '!release \'pokemonName\'  :  Release pokemon if you own it
-   '!left  :  Check how many rolls you have left
-   '!time  :  Check time left till rolls reset
-   '!trade \'yourPokemon\' @user \'traderPokemon\'  :  Send trade request to a user
+   '!check \'pokemonName\'  :  Check a pokemon's information<br/>
+   '!release \'pokemonName\'  :  Release pokemon if you own it<br/>
+   '!left  :  Check how many rolls you have left<br/>
+   '!time  :  Check time left till rolls reset<br/>
+   '!trade \'yourPokemon\' @user \'traderPokemon\'  :  Send trade request to a user<br/>
    
-   !help : command for more info on a command
+   !help : command for more info on a command<br/>
 
