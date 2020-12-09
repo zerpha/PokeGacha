@@ -6,7 +6,7 @@ Users are able to collect, trade, and release hundreds of Pokemon.
 
 ![](https://github.com/zerpha/PokeGacha/blob/master/Demo.gif)
 
-#Commands
+#Commands<br/>
    '!list @user : Lists all of users pokemon<br/>
    '!check \'pokemonName\'  :  Check a pokemon's information<br/>
    '!release \'pokemonName\'  :  Release pokemon if you own it<br/>
